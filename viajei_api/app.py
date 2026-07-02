@@ -1,9 +1,13 @@
 from http import HTTPStatus
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from viajei_api.database import get_session
+from viajei_api.models import User
 from viajei_api.schemas.message import Message
-from viajei_api.schemas.user import User, UserDB, UserList, UserPublic
+from viajei_api.schemas.user import UserList, UserPublic, UserSchema
 
 app = FastAPI()
 
@@ -16,17 +20,27 @@ def read_root():
 
 
 @app.post("/users/", status_code=HTTPStatus.CREATED, response_model=UserPublic)
-def login(user: User):
-    user_with_id = UserDB(**user.model_dump(), id=len(database) + 1)
+def create_user(user: UserSchema, session: Session = Depends(get_session)):
 
-    database.append(user_with_id)
+    db_user = session.scalar(select(User).where((User.email == user.email)))
 
-    return user_with_id
+    if db_user:
+        raise HTTPException(HTTPStatus.CONFLICT, detail="Esse email já existe")
+
+    db_user = User(email=user.email, password=user.password)
+
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return db_user
 
 
 @app.get("/users/", response_model=UserList)
-def read_users():
-    return {"users": database}
+def read_users(
+    skip: int = 0, limit: int = 100, session: Session = Depends(get_session)
+):
+    users = session.scalars(select(User).offset(skip).limit(limit)).all()
+    return {"users": users}
 
 
 @app.delete("/users/{user_id}", response_model=Message)
