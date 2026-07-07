@@ -77,3 +77,21 @@ def test_get_token(client, user):
     assert response.status_code == HTTPStatus.OK
     assert "token_type" in token
     assert "access_token" in token
+
+
+def test_create_story(authenticated_users):
+
+    response = authenticated_users.post(
+        "/story",
+        json={
+            "author": "joao",
+            "title": "Era uma vez",
+            "story": "Era uma vez",
+        },
+    )
+    assert response.status_code == HTTPStatus.CREATED
+    assert response.json() == {
+        "id": 1,
+        "email": "example@example.com",
+        "title": "Era uma vez",
+    }

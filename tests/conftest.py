@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from viajei_api.app import app
 from viajei_api.database import get_session
 from viajei_api.models import User, table_registry
-from viajei_api.security import get_password_hash
+from viajei_api.security import get_current_user, get_password_hash
 
 
 @pytest.fixture
@@ -74,3 +74,14 @@ def user(session):
 
     user.clean_passwd = password
     return user
+
+
+@pytest.fixture
+def authenticated_users(client, user):
+    def mock_get_current_user():
+        return user
+
+    app.dependency_overrides[get_current_user] = mock_get_current_user
+    yield client
+
+    app.dependency_overrides.clear()
